@@ -1,7 +1,6 @@
 from typing import Iterable, Optional, Union
 from openpyxl import load_workbook
-from .row import MappedSequence
-from .columns import Column
+from .mapped_sequence import MappedSequence
 from .utils import is_iterable
 
 
@@ -11,11 +10,12 @@ class Table:
         self._rows = MappedSequence(rows)
 
         # Build columns
-        new_columns = []
-        for n, name in enumerate(self._column_names):
-            column = Column(n, name, self._rows, row_names=None)
-            new_columns.append(column)
-        self._columns = MappedSequence(new_columns, self._column_names)
+        # new_columns = []
+        # for n, name in enumerate(self._column_names):
+        #     column = Column(n, name, self._rows, row_names=None)
+        #     new_columns.append(column)
+        # self._columns = MappedSequence(new_columns, self._column_names)
+        self._columns = MappedSequence.from_transposed(rows, column_names)
 
     @classmethod
     def from_excel(cls, file_path, header: Optional[Union[int, Iterable[int]]] = 0, sheetname: Optional[str] = None):

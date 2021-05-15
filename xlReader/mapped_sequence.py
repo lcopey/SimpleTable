@@ -8,8 +8,8 @@ rows and columns.
 
 from collections import OrderedDict
 from collections import Sequence
-
-from .utils import memoize
+from typing import Optional
+from .utils import memoize, is_iterable
 
 
 class MappedSequence(Sequence):
@@ -30,11 +30,12 @@ class MappedSequence(Sequence):
 
     def __init__(self, values, keys=None):
         self._values = tuple(values)
+        self._keys = keys
 
-        if keys is not None:
-            self._keys = keys
-        else:
-            self._keys = None
+    @classmethod
+    def from_transposed(cls, rows, column_names: Optional[str] = None):
+        columns = list(zip(*rows))
+        return cls(columns, column_names)
 
     def __getstate__(self):
         """
@@ -164,3 +165,6 @@ class MappedSequence(Sequence):
             raise KeyError
 
         return OrderedDict(self.items())
+
+    def unique(self):
+        return tuple(set(self._values))
