@@ -89,7 +89,7 @@ class MappedSequence(Sequence):
     def __repr__(self):
         return self.__str__()
 
-    def _get_from_indices(self, indices):
+    def _get_sequence_from_indices(self, indices):
         values = self.values()
         keys = self.keys()
 
@@ -103,18 +103,18 @@ class MappedSequence(Sequence):
 
     def __getitem__(self, item):
         """
-        Retrieve values from this array by index, slice or key.
+        Retrieve values from this array by index, list of index, slice or key.
         """
         if isinstance(item, slice):
             indices = range(*item.indices(len(self)))
-            return self._get_from_indices(indices)
+            return self._get_sequence_from_indices(indices)
 
         elif type(item) is list:
             if not all([k in self.keys() for k in item]):
                 raise KeyError
             keys = self.keys()
             indices = [keys.index(k) for k in item]
-            return self._get_from_indices(indices)
+            return self._get_sequence_from_indices(indices)
 
 
         # Note: can't use isinstance because bool is a subclass of int
@@ -176,6 +176,10 @@ class MappedSequence(Sequence):
         Equivalent to :meth:`collections.OrderedDict.items`.
         """
         return tuple(zip(self.keys(), self.values()))
+
+    @property
+    def name(self):
+        return self._name
 
     def get(self, key, default=None):
         """

@@ -1,5 +1,5 @@
 from typing import Iterable, Optional, Union, List, Sequence
-from functools import reduce
+from functools import partial
 from openpyxl import load_workbook
 from .mapped_sequence import MappedSequence
 from .utils import is_iterable
@@ -122,3 +122,26 @@ class MappedTable:
                 new_columns = [new_columns]
 
             return MappedTable(values=new_values, index=new_index, columns=new_columns, axis=1)
+
+    def sort_values(self, key: Union[int, str, Iterable[str]], ascending: bool = True) -> 'MappedTable':
+        """
+
+        Parameters
+        ----------
+        key: Union[int, str, Iterable[str]]
+            key used to sort the table. It can be an integer (position of the column) or the name of the column
+            passed as a string or a list of string.
+        ascending : bool
+            sort values in ascending ordre if True
+
+        Returns
+        -------
+        MappedTable
+        Sorted table
+
+        """
+        values_as_rows = [MappedSequence(row, self.columns, name=name) for name, *row in zip(self.index, *self.values)]
+        sort_key = partial(MappedSequence.__getitem__, item=key)
+        sorted_values = sorted(values_as_rows, key=sort_key, reverse=not ascending)
+        new_index = tuple(value.name for value in sorted_values)
+        return MappedTable(values=sorted_values, index=new_index, columns=self.columns)
