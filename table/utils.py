@@ -1,11 +1,10 @@
-import functools
-import collections
+from collections.abc import Iterable
 import six
 
 
 def is_iterable(arg):
     return (
-            isinstance(arg, collections.Iterable)
+            isinstance(arg, Iterable)
             and not isinstance(arg, six.string_types)
     )
 
@@ -25,17 +24,3 @@ class NullOrder(object):
             return False
 
         return True
-
-
-def memoize(func):
-    """Memoize decorator for instance methods that take no arguments."""""
-
-    @functools.wraps(func)
-    def inner(self):
-        """Return memoized values"""
-        if inner.memo is None:
-            inner.memo = func(self)
-        return inner.memo
-
-    inner.memo = None
-    return inner
