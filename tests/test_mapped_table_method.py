@@ -12,3 +12,8 @@ class TestMappedTable(unittest.TestCase):
         self.assertIsNotNone(self.table[0:1, 'sepal length (cm)'])
         self.assertIsNotNone(self.table[0:1, ['sepal length (cm)', 'petal length (cm)']])
         self.assertIsNotNone(self.table[[0, 2], ['sepal length (cm)', 'petal length (cm)']])
+
+    def test_sort(self):
+        self.assertIsNotNone(self.table.sort_values(0))
+        self.assertIsNotNone(self.table.sort_values('sepal length (cm)'))
+        self.assertIsNotNone(self.table.sort_values(['petal length (cm)', 'sepal width (cm)']))

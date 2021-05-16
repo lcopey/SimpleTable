@@ -155,6 +155,18 @@ class MappedSequence(Sequence):
         """
         return not self.__eq__(other)
 
+    def __lt__(self, other):
+        """
+        Lower than operator
+        """
+        return tuple(self) < tuple(other)
+
+    def __gt__(self, other):
+        """
+        Greater than operator
+        """
+        return tuple(self) > tuple(other)
+
     def __contains__(self, value):
         return self.values().__contains__(value)
 
