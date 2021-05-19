@@ -9,6 +9,10 @@ def is_iterable(arg):
     )
 
 
+def is_scalar(arg):
+    return not is_iterable(arg)
+
+
 class NullOrder(object):
     """
     Dummy object used for sorting in place of None.

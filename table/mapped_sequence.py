@@ -1,6 +1,7 @@
 from collections import Sequence, OrderedDict
 from typing import Tuple, Any
 import functools
+from .utils import is_scalar
 
 
 def memoize(func):
@@ -32,18 +33,25 @@ class MappedSequence(Sequence):
     :param keys:
         A sequence of keys.
     """
-    __slots__ = ['_values', '_keys', '_name', '_cache']
+    __slots__ = ['_values', '_keys', '_name', '_cache', '_scalar']
 
     def __init__(self, values, keys=None, name=None):
         self._values = tuple(values)
+        if all([is_scalar(value) for value in self._values]):
+            self._scalar = True
+        else:
+            self._scalar = False
+
         if keys is not None:
             assert len(values) == len(keys), 'values and keys should have the same length, got {} and {}'.format(
                 len(values), len(keys))
             self._keys = tuple(keys)
         else:
-            self._keys = None
+            self._keys = range(len(values))
 
         self._name = name
+        # cache to speed execution of some methods
+        # function results are cached using the function name as key
         self._cache = dict()
 
     def __getstate__(self):
@@ -110,12 +118,18 @@ class MappedSequence(Sequence):
             return self._get_sequence_from_indices(indices)
 
         elif type(item) is list:
-            if not all([k in self.keys() for k in item]):
-                raise KeyError
-            keys = self.keys()
-            indices = [keys.index(k) for k in item]
-            return self._get_sequence_from_indices(indices)
 
+            item_in_keys = [k in self.keys() for k in item]
+            # in the case the list contains numerical index
+            if all([type(k) is int for k in item]):
+                return self._get_sequence_from_indices(item)
+            # in the case the list contains directly the keys of the sequence
+            elif all(item_in_keys):
+                keys = self.keys()
+                indices = [keys.index(k) for k in item]
+                return self._get_sequence_from_indices(indices)
+            else:
+                raise KeyError
 
         # Note: can't use isinstance because bool is a subclass of int
         elif type(item) is int:
@@ -154,6 +168,18 @@ class MappedSequence(Sequence):
         Inequality tests with other sequences.
         """
         return not self.__eq__(other)
+
+    def __lt__(self, other: 'MappedSequence'):
+        """
+        Lower than test with other sequences
+        """
+        return self._values < other.values()
+
+    def __gt__(self, other: 'MappedSequence'):
+        """
+        Greater than test with other sequences
+        """
+        return self._values > other.values()
 
     def __contains__(self, value):
         return self.values().__contains__(value)
@@ -207,3 +233,15 @@ class MappedSequence(Sequence):
     @memoize
     def unique(self):
         return tuple(set(self._values))
+
+    def reindex(self, index):
+        if self._scalar:
+            return MappedSequence(
+                values=tuple(self.get(value, None) for value in index),
+                keys=index, name=self.name
+            )
+        else:
+            raise KeyError
+
+    def to_list(self):
+        return list(self.values())

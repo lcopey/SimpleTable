@@ -7,7 +7,7 @@ from .utils import is_iterable
 
 class MappedTable:
     """A generic container for immutable 2-dimensional data"""
-    __slots__ = ['_values_as_columns', '_index', '_columns']
+    __slots__ = ['_values', '_index', '_columns']
 
     def __init__(self, values: Sequence[Sequence], columns: Sequence[str], index: Optional[Iterable] = None,
                  axis=0):
@@ -40,7 +40,7 @@ class MappedTable:
 
         # Store as MappedSequence of columns
         values_as_columns = [MappedSequence(values=value, keys=index, name=col) for value, col in zip(values, columns)]
-        self._values_as_columns = MappedSequence(values=values_as_columns, keys=columns)
+        self._values = MappedSequence(values=values_as_columns, keys=columns)
 
         # Store as MappedSequence of rows
         # self._values = MappedSequence([MappedSequence(value, columns, idx) for value, idx in zip(values, index)], index)
@@ -101,13 +101,34 @@ class MappedTable:
         return self._columns
 
     @property
-    def values(self):
-        return self._values_as_columns
+    def values(self) -> 'MappedSequence':
+        return self._values
+
+    def __str__(self):
+        """
+        Print an ascii sample of the contents of this sequence.
+        """
+
+        return self.values.__str__()
+
+    def __repr__(self):
+        return self.__str__()
 
     def __getitem__(self, key):
         # In case key is not iterable, slice the columns
-        if not is_iterable(key) or type(key) is list:
-            return self.values[key]
+        if not is_iterable(key) and type(key) is not slice and type(key) is not list:
+            values = self.values[key]
+            # return MappedTable(values=[values], columns=[values.name], index=self.index, axis=1)
+            return values
+
+        elif type(key) is list:
+            values = self.values[key]
+            return MappedTable(values=values, columns=values.keys(), index=self.index, axis=1)
+
+        elif type(key) is slice:
+            new_index = self.index[key]
+            new_values = [value[key] for value in self.values]
+            return MappedTable(values=new_values, index=new_index, columns=self.columns, axis=1)
 
         elif type(key) is tuple and len(key) == 2:
             # start by slicing the columns
@@ -122,6 +143,18 @@ class MappedTable:
                 new_columns = [new_columns]
 
             return MappedTable(values=new_values, index=new_index, columns=new_columns, axis=1)
+
+    def __len__(self):
+        return len(self.index)
+
+    def __eq__(self, other: 'MappedTable') -> bool:
+        result = self.columns == other.columns
+        result &= self.values == other.values
+        return result
+
+    @property
+    def shape(self):
+        return len(self.index), len(self.columns)
 
     def sort_values(self, key: Union[int, str, Iterable[str]], ascending: bool = True) -> 'MappedTable':
         """
@@ -138,10 +171,19 @@ class MappedTable:
         -------
         MappedTable
         Sorted table
-
         """
-        values_as_rows = [MappedSequence(row, self.columns, name=name) for name, *row in zip(self.index, *self.values)]
+        values_as_rows = self.to_list()
         sort_key = partial(MappedSequence.__getitem__, item=key)
         sorted_values = sorted(values_as_rows, key=sort_key, reverse=not ascending)
         new_index = tuple(value.name for value in sorted_values)
         return MappedTable(values=sorted_values, index=new_index, columns=self.columns)
+
+    def _get_empty_sequence(self, ):
+        return (None,) * self.shape[0]
+
+    def reindex(self, columns):
+        values = [self.values.get(value, self._get_empty_sequence()) for value in columns]
+        return MappedTable(values=values, index=self.index, columns=columns, axis=1)
+
+    def to_list(self):
+        return [MappedSequence(row, self.columns, name=name) for name, *row in zip(self.index, *self.values)]
