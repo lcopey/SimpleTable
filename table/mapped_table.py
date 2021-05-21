@@ -2,7 +2,7 @@ from typing import Iterable, Optional, Union, List, Sequence
 from functools import partial
 from openpyxl import load_workbook
 from .mapped_sequence import MappedSequence
-from .utils import is_iterable
+from .utils import is_iterable, is_scalar
 
 
 class MappedTable:
@@ -114,35 +114,81 @@ class MappedTable:
     def __repr__(self):
         return self.__str__()
 
-    def __getitem__(self, key):
-        # In case key is not iterable, slice the columns
-        if not is_iterable(key) and type(key) is not slice and type(key) is not list:
-            values = self.values[key]
-            # return MappedTable(values=[values], columns=[values.name], index=self.index, axis=1)
-            return values
-
-        elif type(key) is list:
-            values = self.values[key]
+    # def __getitem__(self, key):
+    #     # In case key is not iterable, slice the columns
+    #     # 1-dimensional item
+    #     if not is_iterable(key) and type(key) is not slice and type(key) is not list:
+    #         values = self.values[key]
+    #         # return MappedTable(values=[values], columns=[values.name], index=self.index, axis=1)
+    #         return values
+    #
+    #     elif type(key) is list:
+    #         values = self.values[key]
+    #         return MappedTable(values=values, columns=values.keys(), index=self.index, axis=1)
+    #
+    #     elif type(key) is slice:
+    #         new_index = self.index[key]
+    #         new_values = [value[key] for value in self.values]
+    #         return MappedTable(values=new_values, index=new_index, columns=self.columns, axis=1)
+    #
+    #     elif type(key) is tuple and len(key) == 2:
+    #         # start by slicing the columns
+    #         new_columns = self.columns[key[1]]
+    #         new_index = self.index[key[0]]
+    #         subset = self.values[key[1]]
+    #         # check if the subset is 2dimensional or 1d
+    #         if isinstance(subset[0], MappedSequence):
+    #             new_values = [value[key[0]] for value in subset]
+    #         else:
+    #             # TODO works in case of scalar...
+    #             new_values = [[subset[key[0]]]]
+    #             new_columns = [new_columns]
+    #             new_index = [new_index]
+    #
+    #         return MappedTable(values=new_values, index=new_index, columns=new_columns, axis=1)
+    def __getitem__(self, item):
+        # 1-dimensional item
+        if type(item) is slice:
+            # Slice the rows
+            new_index = self.index[item]
+            new_values = [value[item] for value in self.values]
+            if isinstance(new_index, MappedSequence):
+                return MappedTable(values=new_values, index=new_index, columns=self.columns, axis=1)
+            else:
+                return MappedSequence(values=new_values, keys=self.columns, name=new_index)
+        elif type(item) is list:
+            # Get the corresponding columns
+            values = self.values[item]  # getting MappedSequence
             return MappedTable(values=values, columns=values.keys(), index=self.index, axis=1)
 
-        elif type(key) is slice:
-            new_index = self.index[key]
-            new_values = [value[key] for value in self.values]
-            return MappedTable(values=new_values, index=new_index, columns=self.columns, axis=1)
-
-        elif type(key) is tuple and len(key) == 2:
-            # start by slicing the columns
-            new_columns = self.columns[key[1]]
-            new_index = self.index[key[0]]
-            subset = self.values[key[1]]
-            # check if the subset is 2dimensional or 1d
-            if isinstance(subset[0], MappedSequence):
-                new_values = [value[key[0]] for value in subset]
+        elif type(item) is tuple and len(item) == 2:
+            new_columns = self.columns[item[1]]
+            new_index = self.index[item[0]]
+            subset = self.values[item[1]]
+            sequence_colums = isinstance(new_columns, MappedSequence)
+            sequence_index = isinstance(new_index, MappedSequence)
+            # When slicing multiple columns and multiple rows
+            if sequence_colums and sequence_index:
+                new_values = [value[item[0]] for value in subset]
+                return MappedTable(values=new_values, columns=new_columns, index=new_index, axis=1)
+            # When slicing multiple columns but one rows
+            elif sequence_colums and not sequence_index:
+                new_values = [value[item[0]] for value in subset]
+                return MappedSequence(new_values, keys=new_columns, name=new_index)
+            elif not sequence_colums and sequence_index:
+                # If the new index is a MappedSequence, should return a MappedSequence
+                new_values = subset[item[0]]
+                return MappedSequence(values=new_values, keys=new_index, name=new_columns)
+            elif not sequence_colums and not sequence_index:
+                # If the new index is only a scalar, should return a scalar
+                return subset[item[0]]
             else:
-                new_values = [subset[key[0]]]
-                new_columns = [new_columns]
+                raise KeyError
 
-            return MappedTable(values=new_values, index=new_index, columns=new_columns, axis=1)
+
+        else:
+            # item must be a scalar, return the corresponding MappedSequence
+            return self.values[item]
 
     def __len__(self):
         return len(self.index)

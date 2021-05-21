@@ -1,5 +1,5 @@
 import unittest
-from table import MappedTable, MappedSequence
+from table import MappedTable, MappedSequence, concat, merge
 
 
 class TestMappedTable(unittest.TestCase):
@@ -7,11 +7,18 @@ class TestMappedTable(unittest.TestCase):
         self.table = MappedTable.from_excel('../datas.xlsx')
 
     def test_slice(self):
+        self.assertIsNotNone(self.table[0])
+        self.assertRaises(KeyError, self.table.__getitem__, [[0]])
         self.assertIsNotNone(self.table[0:1])
-        self.assertIsNotNone(self.table[0:1, 0:1])
+        self.assertIsNotNone(self.table[0:10])
+        self.assertIsNotNone(self.table[0, 'sepal length (cm)'])
         self.assertIsNotNone(self.table[0:1, 'sepal length (cm)'])
+        self.assertIsNotNone(self.table[0:10, 'sepal length (cm)'])
+        self.assertIsNotNone(self.table[0, ['sepal length (cm)', 'petal length (cm)']])
         self.assertIsNotNone(self.table[0:1, ['sepal length (cm)', 'petal length (cm)']])
+        self.assertIsNotNone(self.table[0:10, ['sepal length (cm)', 'petal length (cm)']])
         self.assertIsNotNone(self.table[[0, 2], ['sepal length (cm)', 'petal length (cm)']])
+        self.assertIsNotNone(self.table[2, :])
         for sequence in self.table:
             self.assertIsNotNone(sequence)
             self.assertIsInstance(sequence, MappedSequence)
@@ -20,3 +27,41 @@ class TestMappedTable(unittest.TestCase):
         self.assertIsNotNone(self.table.sort_values(0))
         self.assertIsNotNone(self.table.sort_values('sepal length (cm)'))
         self.assertIsNotNone(self.table.sort_values(['sepal length (cm)', 'sepal width (cm)']))
+
+    def test_vstack(self):
+        self.assertEqual(concat(self.table[0:30], self.table[30:], axis=0), self.table, )
+
+    def test_hstack(self):
+        new_table = concat(self.table, MappedSequence(range(len(self.table)), name='ID'), axis=1)
+        self.assertIsNotNone(new_table)
+
+    def test_inner_merge(self):
+        new_table = concat(self.table, MappedSequence(range(len(self.table)), name='ID'), axis=1)
+        left = new_table[['ID', 'sepal length (cm)']]
+        right = new_table[['ID', 'sepal width (cm)', 'petal length (cm)', 'petal width (cm)']]
+        self.assertIsNotNone(merge(left, right, on='ID', how='inner'))
+
+    def test_left_merge(self):
+        new_table = concat(self.table, MappedSequence(range(len(self.table)), name='ID'), axis=1)
+        left = new_table[:, ['ID', 'sepal length (cm)']]
+        right = new_table[10:, ['ID', 'sepal width (cm)', 'petal length (cm)', 'petal width (cm)']]
+        result = merge(left, right, on='ID', how='left')
+        self.assertIsInstance(result, MappedTable)
+        self.assertEqual(result.shape, (150, 5))
+
+        left = new_table[1:, ['ID', 'sepal length (cm)']]
+        right = new_table[:, ['ID', 'sepal width (cm)', 'petal length (cm)', 'petal width (cm)']]
+
+        result = merge(left, right, on='ID', how='left')
+        self.assertIsInstance(result, MappedTable)
+        self.assertEqual(result.shape, (149, 5))
+
+        result = merge(left, right, on='ID', how='right')
+        self.assertIsInstance(result, MappedTable)
+        self.assertEqual(result.shape, (150, 5))
+
+        result = merge(left, right, on='ID', how='outer')
+        self.assertIsInstance(result, MappedTable)
+        self.assertEqual(result.shape, (150, 5))
+
+

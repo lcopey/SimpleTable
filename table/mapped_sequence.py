@@ -1,5 +1,5 @@
 from collections import Sequence, OrderedDict
-from typing import Tuple, Any
+from typing import Union, Tuple, Any
 import functools
 from .utils import is_scalar
 
@@ -101,15 +101,20 @@ class MappedSequence(Sequence):
         values = self.values()
         keys = self.keys()
 
-        new_keys = []
-        new_values = []
-        for i in indices:
-            new_keys.append(keys[i])
-            new_values.append(values[i])
+        # if the list has only one item, return a scalar
+        if len(indices) == 1:
+            return values[indices[0]]
+        # else return MappedSequence
+        else:
+            new_keys = []
+            new_values = []
+            for i in indices:
+                new_keys.append(keys[i])
+                new_values.append(values[i])
 
-        return MappedSequence(new_values, new_keys, name=self._name)
+            return MappedSequence(new_values, new_keys, name=self._name)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> Union['MappedSequence', Any]:
         """
         Retrieve values from this array by index, list of index, slice or key.
         """
@@ -118,7 +123,6 @@ class MappedSequence(Sequence):
             return self._get_sequence_from_indices(indices)
 
         elif type(item) is list:
-
             item_in_keys = [k in self.keys() for k in item]
             # in the case the list contains numerical index
             if all([type(k) is int for k in item]):
@@ -134,7 +138,6 @@ class MappedSequence(Sequence):
         # Note: can't use isinstance because bool is a subclass of int
         elif type(item) is int:
             return self.values()[item]
-
         else:
             return self.dict()[item]
 
