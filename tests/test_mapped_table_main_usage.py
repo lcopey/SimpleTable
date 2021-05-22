@@ -64,4 +64,13 @@ class TestMappedTable(unittest.TestCase):
         self.assertIsInstance(result, MappedTable)
         self.assertEqual(result.shape, (150, 5))
 
+    def test_fillnone(self):
+        new_columns = self.table.columns
+        new_columns = ('ID',) + tuple(new_columns)
+        result = self.table.reindex(new_columns)
+        self.assertEqual(result.shape, (150, 5))
+        self.assertEqual(result[0, :], (None, 5.1, 3.5, 1.4, 0.2))
 
+        result = result.fillnone(0)
+        self.assertEqual(result.shape, (150, 5))
+        self.assertEqual(result[0, :], (0, 5.1, 3.5, 1.4, 0.2))

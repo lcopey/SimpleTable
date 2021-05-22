@@ -24,3 +24,11 @@ class TestMappedSequenceUse(unittest.TestCase):
         self.assertEqual(self.mapped_sequence['a'], 0)
         self.assertEqual(self.mapped_sequence['b'], 1)
         self.assertEqual(self.mapped_sequence['c'], 2)
+
+    def test_unique(self):
+        self.assertEqual(self.mapped_sequence.unique(), (0, 1, 2))
+
+    def test_fillnone(self):
+        sequence = self.mapped_sequence.reindex(['a', 'b', 'c', 'd'])
+        self.assertEqual(sequence, (0, 1, 2, None))
+        self.assertEqual(sequence.fillnone(0), (0, 1, 2, 0))

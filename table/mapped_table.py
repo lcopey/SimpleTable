@@ -7,7 +7,7 @@ from .utils import is_iterable, is_scalar
 
 class MappedTable:
     """A generic container for immutable 2-dimensional data"""
-    __slots__ = ['_values', '_index', '_columns']
+    __slots__ = ['_values_as_columns', '_values_as_rows', '_index', '_columns']
 
     def __init__(self, values: Sequence[Sequence], columns: Sequence[str], index: Optional[Iterable] = None,
                  axis=0):
@@ -25,25 +25,29 @@ class MappedTable:
             Orientation of the values. If axis = 0, values are Iterable of rows. If axis = 1, values are Iterable of
             columns.
         """
+        # index and columns are also used as keys to ease slicing.
+        self._columns = MappedSequence(columns, columns)
 
         if axis == 0:
             if index is None:
                 index = range(len(values))
-            values = list(zip(*values))
+            values_as_rows = [MappedSequence(value, keys=columns, name=idx) for idx, value in zip(index, values)]
+            values_as_columns = [MappedSequence(value, keys=index, name=col) for col, *value in zip(columns, *values)]
+
         else:
             if index is None:
                 index = range(len(values[0]))
+            values_as_columns = [MappedSequence(value, keys=index, name=col) for col, value in zip(columns, values)]
+            values_as_rows = [MappedSequence(value, keys=columns, name=idx) for idx, *value in zip(index, *values)]
 
-        # index and columns are also used as keys to ease slicing.
+        values_as_rows = MappedSequence(values_as_rows, keys=index)
+        values_as_columns = MappedSequence(values_as_columns, keys=columns)
         self._index = MappedSequence(index, index)
-        self._columns = MappedSequence(columns, columns)
 
         # Store as MappedSequence of columns
-        values_as_columns = [MappedSequence(values=value, keys=index, name=col) for value, col in zip(values, columns)]
-        self._values = MappedSequence(values=values_as_columns, keys=columns)
-
+        self._values_as_columns = values_as_columns
         # Store as MappedSequence of rows
-        # self._values = MappedSequence([MappedSequence(value, columns, idx) for value, idx in zip(values, index)], index)
+        self._values_as_rows = values_as_rows
 
     @classmethod
     def from_excel(cls, file_path, header: Optional[Union[int, Iterable[int]]] = 0,
@@ -102,7 +106,14 @@ class MappedTable:
 
     @property
     def values(self) -> 'MappedSequence':
-        return self._values
+        return self._values_as_columns
+
+    @property
+    def T(self):
+        return self.transpose()
+
+    def transpose(self):
+        return self._values_as_rows
 
     def __str__(self):
         """
@@ -114,38 +125,6 @@ class MappedTable:
     def __repr__(self):
         return self.__str__()
 
-    # def __getitem__(self, key):
-    #     # In case key is not iterable, slice the columns
-    #     # 1-dimensional item
-    #     if not is_iterable(key) and type(key) is not slice and type(key) is not list:
-    #         values = self.values[key]
-    #         # return MappedTable(values=[values], columns=[values.name], index=self.index, axis=1)
-    #         return values
-    #
-    #     elif type(key) is list:
-    #         values = self.values[key]
-    #         return MappedTable(values=values, columns=values.keys(), index=self.index, axis=1)
-    #
-    #     elif type(key) is slice:
-    #         new_index = self.index[key]
-    #         new_values = [value[key] for value in self.values]
-    #         return MappedTable(values=new_values, index=new_index, columns=self.columns, axis=1)
-    #
-    #     elif type(key) is tuple and len(key) == 2:
-    #         # start by slicing the columns
-    #         new_columns = self.columns[key[1]]
-    #         new_index = self.index[key[0]]
-    #         subset = self.values[key[1]]
-    #         # check if the subset is 2dimensional or 1d
-    #         if isinstance(subset[0], MappedSequence):
-    #             new_values = [value[key[0]] for value in subset]
-    #         else:
-    #             # TODO works in case of scalar...
-    #             new_values = [[subset[key[0]]]]
-    #             new_columns = [new_columns]
-    #             new_index = [new_index]
-    #
-    #         return MappedTable(values=new_values, index=new_index, columns=new_columns, axis=1)
     def __getitem__(self, item):
         # 1-dimensional item
         if type(item) is slice:
@@ -184,7 +163,6 @@ class MappedTable:
                 return subset[item[0]]
             else:
                 raise KeyError
-
 
         else:
             # item must be a scalar, return the corresponding MappedSequence
@@ -232,4 +210,25 @@ class MappedTable:
         return MappedTable(values=values, index=self.index, columns=columns, axis=1)
 
     def to_list(self):
-        return [MappedSequence(row, self.columns, name=name) for name, *row in zip(self.index, *self.values)]
+        # return [MappedSequence(row, self.columns, name=name) for name, *row in zip(self.index, *self.values)]
+        return list(self._values_as_rows)
+
+    def fillnone(self, value):
+        return MappedTable([column.fillnone(value) for column in self._values_as_columns],
+                           index=self.index, columns=self.columns, axis=1)
+
+    def pivot(self):
+        pass
+
+    def melt(self, id_vars, value_name=None, var_name=None):
+        if is_scalar(id_vars):
+            assert id_vars in self.columns, \
+                'id_vars should be in columns, expected {}, got {}'.format(self.columns, id_vars)
+            id_vars = [id_vars]
+        else:
+            assert all([col in self.columns for col in id_vars]), \
+                'id_vars should be in columns, expected {}, got {}'.format(self.columns, id_vars)
+        column_to_melt = [col for col in self.columns if col not in id_vars]
+        # reorders columns
+        for row in self._values_as_rows:
+            pass

@@ -47,7 +47,7 @@ class MappedSequence(Sequence):
                 len(values), len(keys))
             self._keys = tuple(keys)
         else:
-            self._keys = range(len(values))
+            self._keys = tuple(range(len(values)))
 
         self._name = name
         # cache to speed execution of some methods
@@ -80,12 +80,13 @@ class MappedSequence(Sequence):
         """
         Print a unicode sample of the contents of this sequence.
         """
-        sample = u', '.join(repr(d) for d in self.values()[:5])
+        if len(self) <= 10:
+            sample = ', '.join(repr(d) for d in self.values())
+        else:
+            sample = u', '.join(repr(d) for d in self.values()[:3])
+            sample += ', ...,' + ', '.join(repr(d) for d in self.values()[-3:])
 
-        if len(self) > 5:
-            sample += u', ...'
-
-        return u'<{}: ({})>'.format(self._name, sample)
+        return u'{}: ({})'.format(self._name, sample)
 
     def __str__(self):
         """
@@ -248,3 +249,7 @@ class MappedSequence(Sequence):
 
     def to_list(self):
         return list(self.values())
+
+    def fillnone(self, value):
+        return MappedSequence([value if item is None else item for item in self.values()],
+                              keys=self.keys(), name=self.name)
