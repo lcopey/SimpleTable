@@ -1,6 +1,7 @@
 from collections import Sequence, OrderedDict
-from typing import Tuple, Any
+from typing import Union, Tuple, Any
 import functools
+from .utils import is_scalar
 
 
 def memoize(func):
@@ -32,18 +33,25 @@ class MappedSequence(Sequence):
     :param keys:
         A sequence of keys.
     """
-    __slots__ = ['_values', '_keys', '_name', '_cache']
+    __slots__ = ['_values', '_keys', '_name', '_cache', '_scalar']
 
     def __init__(self, values, keys=None, name=None):
         self._values = tuple(values)
+        if all([is_scalar(value) for value in self._values]):
+            self._scalar = True
+        else:
+            self._scalar = False
+
         if keys is not None:
             assert len(values) == len(keys), 'values and keys should have the same length, got {} and {}'.format(
                 len(values), len(keys))
             self._keys = tuple(keys)
         else:
-            self._keys = None
+            self._keys = tuple(range(len(values)))
 
         self._name = name
+        # cache to speed execution of some methods
+        # function results are cached using the function name as key
         self._cache = dict()
 
     def __getstate__(self):
@@ -72,12 +80,13 @@ class MappedSequence(Sequence):
         """
         Print a unicode sample of the contents of this sequence.
         """
-        sample = u', '.join(repr(d) for d in self.values()[:5])
+        if len(self) <= 10:
+            sample = ', '.join(repr(d) for d in self.values())
+        else:
+            sample = u', '.join(repr(d) for d in self.values()[:3])
+            sample += ', ...,' + ', '.join(repr(d) for d in self.values()[-3:])
 
-        if len(self) > 5:
-            sample += u', ...'
-
-        return u'<{}: ({})>'.format(self._name, sample)
+        return u'{}: ({})'.format(self._name, sample)
 
     def __str__(self):
         """
@@ -93,15 +102,20 @@ class MappedSequence(Sequence):
         values = self.values()
         keys = self.keys()
 
-        new_keys = []
-        new_values = []
-        for i in indices:
-            new_keys.append(keys[i])
-            new_values.append(values[i])
+        # if the list has only one item, return a scalar
+        if len(indices) == 1:
+            return values[indices[0]]
+        # else return MappedSequence
+        else:
+            new_keys = []
+            new_values = []
+            for i in indices:
+                new_keys.append(keys[i])
+                new_values.append(values[i])
 
-        return MappedSequence(new_values, new_keys, name=self._name)
+            return MappedSequence(new_values, new_keys, name=self._name)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> Union['MappedSequence', Any]:
         """
         Retrieve values from this array by index, list of index, slice or key.
         """
@@ -110,17 +124,21 @@ class MappedSequence(Sequence):
             return self._get_sequence_from_indices(indices)
 
         elif type(item) is list:
-            if not all([k in self.keys() for k in item]):
+            item_in_keys = [k in self.keys() for k in item]
+            # in the case the list contains numerical index
+            if all([type(k) is int for k in item]):
+                return self._get_sequence_from_indices(item)
+            # in the case the list contains directly the keys of the sequence
+            elif all(item_in_keys):
+                keys = self.keys()
+                indices = [keys.index(k) for k in item]
+                return self._get_sequence_from_indices(indices)
+            else:
                 raise KeyError
-            keys = self.keys()
-            indices = [keys.index(k) for k in item]
-            return self._get_sequence_from_indices(indices)
-
 
         # Note: can't use isinstance because bool is a subclass of int
         elif type(item) is int:
             return self.values()[item]
-
         else:
             return self.dict()[item]
 
@@ -155,17 +173,17 @@ class MappedSequence(Sequence):
         """
         return not self.__eq__(other)
 
-    def __lt__(self, other):
+    def __lt__(self, other: 'MappedSequence'):
         """
-        Lower than operator
+        Lower than test with other sequences
         """
-        return tuple(self) < tuple(other)
+        return self._values < other.values()
 
-    def __gt__(self, other):
+    def __gt__(self, other: 'MappedSequence'):
         """
-        Greater than operator
+        Greater than test with other sequences
         """
-        return tuple(self) > tuple(other)
+        return self._values > other.values()
 
     def __contains__(self, value):
         return self.values().__contains__(value)
@@ -219,3 +237,19 @@ class MappedSequence(Sequence):
     @memoize
     def unique(self):
         return tuple(set(self._values))
+
+    def reindex(self, index):
+        if self._scalar:
+            return MappedSequence(
+                values=tuple(self.get(value, None) for value in index),
+                keys=index, name=self.name
+            )
+        else:
+            raise KeyError
+
+    def to_list(self):
+        return list(self.values())
+
+    def fillnone(self, value):
+        return MappedSequence([value if item is None else item for item in self.values()],
+                              keys=self.keys(), name=self.name)
