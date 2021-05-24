@@ -8,10 +8,12 @@ class TestMappedTable(unittest.TestCase):
 
     def test_slice(self):
         self.assertIsNotNone(self.table[0])
-        self.assertRaises(KeyError, self.table.__getitem__, [[0]])
+        # self.assertRaises(KeyError, self.table.__getitem__, [[0]])
         self.assertIsNotNone(self.table[0:1])
         self.assertIsNotNone(self.table[0:10])
         self.assertIsNotNone(self.table[0, 'sepal length (cm)'])
+        self.assertIsNotNone(self.table[:, ['sepal length (cm)']])
+        self.assertIsNotNone(self.table[['sepal length (cm)']])
         self.assertIsNotNone(self.table[0:1, 'sepal length (cm)'])
         self.assertIsNotNone(self.table[0:10, 'sepal length (cm)'])
         self.assertIsNotNone(self.table[0, ['sepal length (cm)', 'petal length (cm)']])

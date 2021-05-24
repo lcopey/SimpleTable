@@ -114,12 +114,12 @@ def merge(left: MappedTable, right: MappedTable, on=None, left_on=None, right_on
         left_ = left_values if is_iterable(left_values) else [left_values]
         right_ = right_values if is_iterable(right_values) else [right_values]
         if len(left_) < left_column_count and len(left_) == 1:
-            left_ = left_ * left_column_count
+            left_ *= left_column_count
 
         if len(right_) < right_column_count and len(right_) == 1:
-            right_ = right_ * right_column_count
+            right_ *= right_column_count
 
-        return join_id, *left_, *right_
+        return (join_id, *left_, *right_)
 
     while (left_i < left_len) & (right_i < right_len):
         left_id = left[left_i][0]

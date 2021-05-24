@@ -24,6 +24,7 @@ class TestMappedSequenceUse(unittest.TestCase):
         self.assertEqual(self.mapped_sequence['a'], 0)
         self.assertEqual(self.mapped_sequence['b'], 1)
         self.assertEqual(self.mapped_sequence['c'], 2)
+        self.assertEqual(self.mapped_sequence[['a']], (0,))
 
     def test_unique(self):
         self.assertEqual(self.mapped_sequence.unique(), (0, 1, 2))
