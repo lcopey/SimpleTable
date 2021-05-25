@@ -76,3 +76,8 @@ class TestMappedTable(unittest.TestCase):
         result = result.fillnone(0)
         self.assertEqual(result.shape, (150, 5))
         self.assertEqual(result[0, :], (0, 5.1, 3.5, 1.4, 0.2))
+
+    def test_melt(self):
+        new_table = concat(self.table, MappedSequence(range(len(self.table)), name='ID'), axis=1)
+        new_table = new_table.melt('ID')
+        print(new_table)

@@ -229,6 +229,10 @@ class MappedTable:
             assert all([col in self.columns for col in id_vars]), \
                 'id_vars should be in columns, expected {}, got {}'.format(self.columns, id_vars)
         column_to_melt = [col for col in self.columns if col not in id_vars]
-        # reorders columns
+        new_values = []
         for row in self._values_as_rows:
-            pass
+            for col in column_to_melt:
+                new_values.append((*row[id_vars], col, row[col]))
+
+        new_columns = id_vars + ['variable', 'value']
+        return MappedTable(new_values, columns=new_columns)
