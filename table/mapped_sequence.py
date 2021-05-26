@@ -1,5 +1,6 @@
 from collections import Sequence, OrderedDict
 from typing import Union, Tuple, Any
+import types
 import functools
 from .utils import is_scalar
 
@@ -124,7 +125,7 @@ class MappedSequence(Sequence):
             indices = range(*item.indices(len(self)))
             return self._get_sequence_from_indices(indices)
 
-        elif type(item) is list:
+        elif type(item) is list or isinstance(item, MappedSequence):
 
             item_in_keys = [k in self.keys() for k in item]
             # in the case the list contains numerical index
@@ -202,6 +203,9 @@ class MappedSequence(Sequence):
         """
         return self._values
 
+    def __hash__(self):
+        return hash(self._values)
+
     @memoize
     def items(self) -> Tuple[Tuple[Any, Any]]:
         """
@@ -255,3 +259,21 @@ class MappedSequence(Sequence):
     def fillnone(self, value):
         return MappedSequence([value if item is None else item for item in self.values()],
                               keys=self.keys(), name=self.name)
+
+    def where(self, target_or_func):
+        def compare(x):
+            return x == target_or_func
+
+        if type(target_or_func) == types.FunctionType:
+            check = target_or_func
+        else:
+            check = compare
+
+        new_keys = []
+        new_values = []
+        for key, value in zip(self._keys, self._values):
+            if check(value):
+                new_keys.append(key)
+                new_values.append(value)
+
+        return MappedSequence(values=new_values, keys=new_keys, name=self.name)

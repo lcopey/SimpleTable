@@ -4,7 +4,7 @@ from table import MappedTable, MappedSequence, concat, merge
 
 class TestMappedTable(unittest.TestCase):
     def setUp(self) -> None:
-        self.table = MappedTable.from_excel('../datas.xlsx')
+        self.table = MappedTable.from_excel('../iris.xlsx')
 
     def test_slice(self):
         self.assertIsNotNone(self.table[0])

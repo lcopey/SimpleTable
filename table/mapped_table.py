@@ -7,7 +7,7 @@ from .utils import is_iterable, is_scalar
 
 class MappedTable:
     """A generic container for immutable 2-dimensional data"""
-    __slots__ = ['_values_as_columns', '_values_as_rows', '_index', '_columns']
+    __slots__ = ['_column_values', '_row_values', '_index', '_columns']
 
     def __init__(self, values: Sequence[Sequence], columns: Sequence[str], index: Optional[Iterable] = None,
                  axis=0):
@@ -31,23 +31,27 @@ class MappedTable:
         if axis == 0:
             if index is None:
                 index = range(len(values))
-            values_as_rows = [MappedSequence(value, keys=columns, name=idx) for idx, value in zip(index, values)]
-            values_as_columns = [MappedSequence(value, keys=index, name=col) for col, *value in zip(columns, *values)]
+            row_values = [MappedSequence(value, keys=columns, name=idx) for idx, value in zip(index, values)]
+            row_values = MappedSequence(row_values, keys=index)
+            # column_values = [MappedSequence(value, keys=index, name=col) for col, *value in zip(columns, *values)]
+            column_values = None
 
         else:
             if index is None:
                 index = range(len(values[0]))
-            values_as_columns = [MappedSequence(value, keys=index, name=col) for col, value in zip(columns, values)]
-            values_as_rows = [MappedSequence(value, keys=columns, name=idx) for idx, *value in zip(index, *values)]
+            column_values = [MappedSequence(value, keys=index, name=col) for col, value in zip(columns, values)]
+            column_values = MappedSequence(column_values, keys=columns)
+            # row_values = [MappedSequence(value, keys=columns, name=idx) for idx, *value in zip(index, *values)]
+            row_values = None
 
-        values_as_rows = MappedSequence(values_as_rows, keys=index)
-        values_as_columns = MappedSequence(values_as_columns, keys=columns)
+        # row_values = MappedSequence(row_values, keys=index)
+        # column_values = MappedSequence(column_values, keys=columns)
         self._index = MappedSequence(index, index)
 
         # Store as MappedSequence of columns
-        self._values_as_columns = values_as_columns
+        self._column_values = column_values
         # Store as MappedSequence of rows
-        self._values_as_rows = values_as_rows
+        self._row_values = row_values
 
     @classmethod
     def from_excel(cls, file_path, header: Optional[Union[int, Iterable[int]]] = 0,
@@ -106,14 +110,31 @@ class MappedTable:
 
     @property
     def values(self) -> 'MappedSequence':
-        return self._values_as_columns
+        return self.column_values
+
+    @property
+    def row_values(self):
+        if self._row_values is None:
+            # if row values is None, then _column_values holds the data
+            row_values = [MappedSequence(value, keys=self.columns, name=idx) for idx, *value in
+                          zip(self.index, *self._column_values)]
+            self._row_values = MappedSequence(row_values, keys=self.index)
+        return self._row_values
+
+    @property
+    def column_values(self):
+        if self._column_values is None:
+            column_values = [MappedSequence(value, keys=self.index, name=col) for col, *value in
+                             zip(self.columns, *self._row_values)]
+            self._column_values = MappedSequence(column_values, keys=self.columns)
+        return self._column_values
 
     @property
     def T(self):
         return self.transpose()
 
     def transpose(self):
-        return self._values_as_rows
+        return self._row_values
 
     def __str__(self):
         """
@@ -211,16 +232,21 @@ class MappedTable:
 
     def to_list(self):
         # return [MappedSequence(row, self.columns, name=name) for name, *row in zip(self.index, *self.values)]
-        return list(self._values_as_rows)
+        return list(self.row_values)
+
+    def unique(self):
+        return set(self.row_values)
 
     def fillnone(self, value):
-        return MappedTable([column.fillnone(value) for column in self._values_as_columns],
+        return MappedTable([column.fillnone(value) for column in self._column_values],
                            index=self.index, columns=self.columns, axis=1)
 
-    def pivot(self):
-        pass
-
     def melt(self, id_vars, value_name=None, var_name=None):
+        if value_name is None:
+            value_name = 'value'
+        if var_name is None:
+            var_name = 'variable'
+
         if is_scalar(id_vars):
             assert id_vars in self.columns, \
                 'id_vars should be in columns, expected {}, got {}'.format(self.columns, id_vars)
@@ -230,9 +256,12 @@ class MappedTable:
                 'id_vars should be in columns, expected {}, got {}'.format(self.columns, id_vars)
         column_to_melt = [col for col in self.columns if col not in id_vars]
         new_values = []
-        for row in self._values_as_rows:
+        for row in self.row_values:
             for col in column_to_melt:
                 new_values.append((*row[id_vars], col, row[col]))
 
-        new_columns = id_vars + ['variable', 'value']
+        new_columns = id_vars + [var_name, value_name]
         return MappedTable(new_values, columns=new_columns)
+
+    def pivot(self, index: Union[str, List[str]], column, value):
+        pass
