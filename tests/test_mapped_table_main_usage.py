@@ -2,7 +2,7 @@ import unittest
 from table import MappedTable, MappedSequence, concat, merge
 
 
-class TestMappedTable(unittest.TestCase):
+class TestMappedTable1(unittest.TestCase):
     def setUp(self) -> None:
         self.table = MappedTable.from_excel('../iris.xlsx')
 
@@ -80,4 +80,13 @@ class TestMappedTable(unittest.TestCase):
     def test_melt(self):
         new_table = concat(self.table, MappedSequence(range(len(self.table)), name='ID'), axis=1)
         new_table = new_table.melt('ID')
-        print(new_table)
+        self.assertEqual(new_table.columns, ('ID', 'variable', 'value'))
+        self.assertEqual(new_table.shape, (len(self.table)*len(self.table.columns), 3))
+
+
+class TestMappedTable2(unittest.TestCase):
+    def setUp(self) -> None:
+        self.table = MappedTable.from_excel('../experiment.xlsx')
+
+    def test_get_attr(self):
+        self.assertIsInstance(self.table.experiment_1, MappedSequence)

@@ -1,7 +1,9 @@
+import types
 from typing import Iterable, Optional, Union, List, Sequence
 from functools import partial
 from openpyxl import load_workbook
 from .mapped_sequence import MappedSequence
+from .aggregation import *
 from .utils import is_iterable, is_scalar
 
 
@@ -189,6 +191,13 @@ class MappedTable:
             # item must be a scalar, return the corresponding MappedSequence
             return self.values[item]
 
+    def __getattr__(self, k):
+        try:
+            # Throws exception if not in prototype chain
+            return self.__getattribute__(k)
+        except AttributeError:
+            return self[k]
+
     def __len__(self):
         return len(self.index)
 
@@ -234,6 +243,29 @@ class MappedTable:
         # return [MappedSequence(row, self.columns, name=name) for name, *row in zip(self.index, *self.values)]
         return list(self.row_values)
 
+    def to_dict(self):
+        return dict(self.column_values)
+
+    def where(self, func=None, **kwargs):
+        def compare(x):
+            return x[items] == values
+
+        if func is None:
+            items = list(kwargs.keys())
+            values = tuple(kwargs.values())
+            item_in_columns = [key in self.columns for key in kwargs.keys()]
+            if not all(item_in_columns):
+                raise KeyError
+            func = compare
+        new_keys = []
+        new_values = []
+        for value in self.row_values:
+            if func(value):
+                new_keys.append(value.name)
+                new_values.append(value)
+
+        return MappedTable(values=new_values, index=new_keys, columns=self.columns)
+
     def unique(self):
         return set(self.row_values)
 
@@ -263,5 +295,29 @@ class MappedTable:
         new_columns = id_vars + [var_name, value_name]
         return MappedTable(new_values, columns=new_columns)
 
-    def pivot(self, index: Union[str, List[str]], column, value):
-        pass
+    def pivot(self, index: Union[str, List[str]], column, value, agg_func='mean'):
+        unique_columns = self[column].unique()
+        unique_index = self[index].unique()
+        # define aggregation function
+        if agg_func == 'mean':
+            agg_func = mean_aggregate
+        else:
+            pass
+
+        new_values = []
+        for index_value in unique_index:
+            if is_iterable(index):
+                query = dict(zip(index, index_value))
+                new_row = [*index_value]
+            else:
+                query = {index: index_value}
+                new_row = [index_value]
+            for column_value in unique_columns:
+                # retrieve data corresponding to both index and column
+                # TODO when multiple aggregation, return with a new column
+                #  'agg' containing values for each aggregation function
+                data = self.where(**query, **{column: column_value})[value]
+                new_row.append(agg_func(data))
+            new_values.append(new_row)
+
+        return MappedTable(values=new_values, columns=[index, *unique_columns], axis=0)

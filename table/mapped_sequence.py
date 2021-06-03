@@ -128,8 +128,8 @@ class MappedSequence(Sequence):
         elif type(item) is list or isinstance(item, MappedSequence):
 
             item_in_keys = [k in self.keys() for k in item]
-            # in the case the list contains numerical index
-            if all([type(k) is int for k in item]):
+            # in the case the list contains numerical index that does not match the keys
+            if all([type(k) is int and k not in self.keys() for k in item]):
                 return self._get_sequence_from_indices(item)
             # in the case the list contains directly the keys of the sequence
             elif all(item_in_keys):
@@ -140,7 +140,7 @@ class MappedSequence(Sequence):
                 raise KeyError
 
         # Note: can't use isinstance because bool is a subclass of int
-        elif type(item) is int:
+        elif type(item) is int and item not in self.keys():
             return self.values()[item]
         else:
             return self.dict()[item]
@@ -264,7 +264,7 @@ class MappedSequence(Sequence):
         def compare(x):
             return x == target_or_func
 
-        if type(target_or_func) == types.FunctionType:
+        if isinstance(target_or_func, types.FunctionType):
             check = target_or_func
         else:
             check = compare
@@ -276,4 +276,4 @@ class MappedSequence(Sequence):
                 new_keys.append(key)
                 new_values.append(value)
 
-        return MappedSequence(values=new_values, keys=new_keys, name=self.name)
+        return new_keys

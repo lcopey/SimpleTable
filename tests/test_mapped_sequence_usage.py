@@ -33,3 +33,8 @@ class TestMappedSequenceUse(unittest.TestCase):
         sequence = self.mapped_sequence.reindex(['a', 'b', 'c', 'd'])
         self.assertEqual(sequence, (0, 1, 2, None))
         self.assertEqual(sequence.fillnone(0), (0, 1, 2, 0))
+
+    def test_where(self):
+        self.assertEqual(self.mapped_sequence.where(0), ['a'])
+        self.assertEqual(self.mapped_sequence.where(0), ['a'])
+        self.assertEqual(self.mapped_sequence.where(lambda x: x == 0), ['a'])
