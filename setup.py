@@ -4,22 +4,22 @@
 
 from setuptools import setup, find_packages
 
-with open('README.rst') as readme_file:
+with open('README.md') as readme_file:
     readme = readme_file.read()
 
-with open('./HISTORY.rst') as history_file:
+with open('./HISTORY.md') as history_file:
     history = history_file.read()
 with open('./requirements.txt') as requirements_file:
     requirements = requirements_file.read()
 
-setup_requirements = [ ]
+setup_requirements = []
 
-test_requirements = [ ]
+test_requirements = []
 
 setup(
     author="Laurent Copey",
     author_email='laurent.copey@gmail.com',
-    python_requires='>=3.8',
+    python_requires='>=3.6',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -41,8 +41,8 @@ setup(
     license="MIT license",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
-    keywords='nodeeditor',
-    name='nodeeditor',
+    keywords='SimpleTable',
+    name='SimpleTable',
     # packages=find_packages(include=['_template', '_template.*']),
     packages=find_packages(),
     # package_data={'': ['qss/*']},

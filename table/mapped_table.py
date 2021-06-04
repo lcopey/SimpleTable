@@ -57,7 +57,7 @@ class MappedTable:
 
     @classmethod
     def from_excel(cls, file_path, header: Optional[Union[int, Iterable[int]]] = 0,
-                   sheetname: Optional[str] = None):
+                   sheetname: Optional[str] = None, skiprows: Optional[int] = None):
         """
 
         Parameters
@@ -67,6 +67,7 @@ class MappedTable:
             If header is None, the columns are defined as a sequence of integers.
         sheetname: Optional[str]
             Name of the sheet to parse. If None, the first will used instead.
+        skiprows: Optional[int]
 
         Returns
         -------
@@ -80,22 +81,33 @@ class MappedTable:
             sheetname = workbook.sheetnames[0]
         sheet = workbook[sheetname]
 
+        # Read all rows of the sheet
+
+        if skiprows is None:
+            skiprows = 0
+        else:
+            skiprows += 1
+        values = [row for n, row in enumerate(sheet.iter_rows(values_only=True, min_row=skiprows))]
+
         # Handle header
-        # 1. Instantiate columns
-        # 2. Instantiate values as list of rows
+        # If none, the header is simply a numeric index
         if header is None:
-            values = [row for n, row in enumerate(sheet.iter_rows(values_only=True))]
+            # values = [row for n, row in enumerate(sheet.iter_rows(values_only=True))]
+            # columns = range(len(values[0]))
             columns = range(len(values[0]))
 
         elif is_iterable(header):
+            # header is a list of tuple
             columns = list(
-                zip(*[row for row in sheet.iter_rows(min_row=min(header), max_row=max(header) + 1, values_only=True)])
+                zip(*[row for row in sheet.iter_rows(min_row=min(header) + skiprows, max_row=max(header) + 1 + skiprows,
+                                                     values_only=True)])
             )
-            values = [row for n, row in enumerate(sheet.iter_rows(values_only=True)) if n not in header]
+            values = values[max(header):]
 
         elif type(header) == int:
-            columns = [row for row in sheet.iter_rows(min_row=header, max_row=header + 1, values_only=True)][0]
-            values = [row for n, row in enumerate(sheet.iter_rows(values_only=True)) if n != header]
+            columns = [row for row in
+                       sheet.iter_rows(min_row=header + skiprows, max_row=header + 1 + skiprows, values_only=True)][0]
+            values = values[header + 1:]
 
         else:
             raise ValueError

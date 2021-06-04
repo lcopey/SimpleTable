@@ -7,8 +7,8 @@ from .utils import is_scalar, is_iterable
 
 
 def read_excel(file_path, header: Optional[Union[int, Iterable[int]]] = 0,
-               sheetname: Optional[str] = None):
-    return MappedTable.from_excel(file_path=file_path, header=header, sheetname=sheetname)
+               sheetname: Optional[str] = None, skiprows=None):
+    return MappedTable.from_excel(file_path=file_path, header=header, sheetname=sheetname, skiprows=skiprows)
 
 
 def concat(*args, axis=0):
