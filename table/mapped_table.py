@@ -2,13 +2,16 @@ import types
 from typing import Iterable, Optional, Union, List, Sequence
 from functools import partial
 from openpyxl import load_workbook
+import sys
 from .mapped_sequence import MappedSequence
-from .aggregation import *
+from .aggregation import mean_aggregate
+from .formatter import HtmlFormatter
 from .utils import is_iterable, is_scalar
 
 
 class MappedTable:
     """A generic container for immutable 2-dimensional data"""
+
     __slots__ = ['_column_values', '_row_values', '_index', '_columns']
 
     def __init__(self, values: Sequence[Sequence], columns: Sequence[str], index: Optional[Iterable] = None,
@@ -35,7 +38,6 @@ class MappedTable:
                 index = range(len(values))
             row_values = [MappedSequence(value, keys=columns, name=idx) for idx, value in zip(index, values)]
             row_values = MappedSequence(row_values, keys=index)
-            # column_values = [MappedSequence(value, keys=index, name=col) for col, *value in zip(columns, *values)]
             column_values = None
 
         else:
@@ -43,11 +45,8 @@ class MappedTable:
                 index = range(len(values[0]))
             column_values = [MappedSequence(value, keys=index, name=col) for col, value in zip(columns, values)]
             column_values = MappedSequence(column_values, keys=columns)
-            # row_values = [MappedSequence(value, keys=columns, name=idx) for idx, *value in zip(index, *values)]
             row_values = None
 
-        # row_values = MappedSequence(row_values, keys=index)
-        # column_values = MappedSequence(column_values, keys=columns)
         self._index = MappedSequence(index, index)
 
         # Store as MappedSequence of columns
@@ -92,8 +91,6 @@ class MappedTable:
         # Handle header
         # If none, the header is simply a numeric index
         if header is None:
-            # values = [row for n, row in enumerate(sheet.iter_rows(values_only=True))]
-            # columns = range(len(values[0]))
             columns = range(len(values[0]))
 
         elif is_iterable(header):
@@ -127,7 +124,7 @@ class MappedTable:
         return self.column_values
 
     @property
-    def row_values(self):
+    def row_values(self) -> 'MappedSequence[MappedSequence]':
         if self._row_values is None:
             # if row values is None, then _column_values holds the data
             row_values = [MappedSequence(value, keys=self.columns, name=idx) for idx, *value in
@@ -148,7 +145,7 @@ class MappedTable:
         return self.transpose()
 
     def transpose(self):
-        return self._row_values
+        return self.row_values
 
     def __str__(self):
         """
@@ -159,6 +156,10 @@ class MappedTable:
 
     def __repr__(self):
         return self.__str__()
+
+    def _repr_html_(self) -> str:
+        formatter = HtmlFormatter()
+        return formatter.format_table(self)
 
     def __getitem__(self, item):
         # 1-dimensional item
@@ -203,12 +204,12 @@ class MappedTable:
             # item must be a scalar, return the corresponding MappedSequence
             return self.values[item]
 
-    def __getattr__(self, k):
-        try:
-            # Throws exception if not in prototype chain
-            return self.__getattribute__(k)
-        except AttributeError:
-            return self[k]
+    # def __getattr__(self, k):
+    #     try:
+    #         # Throws exception if not in prototype chain
+    #         return self.__getattribute__(k)
+    #     except AttributeError:
+    #         return self[k]
 
     def __len__(self):
         return len(self.index)
@@ -280,6 +281,10 @@ class MappedTable:
 
     def unique(self):
         return set(self.row_values)
+
+    def isnone(self):
+        new_values = [value.isnone() for value in self.row_values]
+        return MappedTable(values=new_values, index=self.index, columns=self.columns, axis=0)
 
     def fillnone(self, value):
         return MappedTable([column.fillnone(value) for column in self._column_values],

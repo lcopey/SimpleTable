@@ -97,7 +97,15 @@ class MappedSequence(Sequence):
         return str(self.__unicode__())
 
     def __repr__(self):
-        return self.__str__()
+        if len(self) > 11:
+            rows = [f"{index}\t{value}" for value, index in zip(self.values()[:5], self.keys()[:5])]
+            rows += ['...\t...']
+            rows += [f"{index}\t{value}" for value, index in zip(self.values()[-5:], self.keys()[-5:])]
+        else:
+            rows = [f"{index}\t{value}" for value, index in zip(self.values(), self.keys())]
+        rows = '\n'.join(rows)
+        footer = f'Name: {self.name}, Length: {self.__len__()}'
+        return rows + '\n' + footer
 
     def _get_sequence_from_indices(self, indices):
         values = self.values()
@@ -255,6 +263,10 @@ class MappedSequence(Sequence):
 
     def to_list(self):
         return list(self.values())
+
+    def isnone(self):
+        new_values = [value is None for value in self.values()]
+        return MappedSequence(values=new_values, keys=self.keys(), name=self.name)
 
     def fillnone(self, value):
         return MappedSequence([value if item is None else item for item in self.values()],

@@ -7,3 +7,4 @@ class TestMappedTable(unittest.TestCase):
         self.assertIsNotNone(MappedTable([(0, 1, 2), (0, 1, 2)], columns=['a', 'b', 'c']))
         self.assertIsNotNone(MappedTable([(0, 1, 2), (0, 1, 2)], columns=['a', 'b'], axis=1))
         self.assertIsNotNone(MappedTable.from_excel('../iris.xlsx'))
+        self.assertIsNotNone(MappedTable.from_excel('../iris.xlsx', skiprows=2))
