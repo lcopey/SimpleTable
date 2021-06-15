@@ -2,7 +2,6 @@ import types
 from typing import Iterable, Optional, Union, List, Sequence
 from functools import partial
 from openpyxl import load_workbook
-import sys
 from .mapped_sequence import MappedSequence
 from .aggregation import mean_aggregate
 from .formatter import HtmlFormatter
@@ -201,15 +200,13 @@ class MappedTable:
                 raise KeyError
 
         else:
-            # item must be a scalar, return the corresponding MappedSequence
             return self.values[item]
 
-    # def __getattr__(self, k):
-    #     try:
-    #         # Throws exception if not in prototype chain
-    #         return self.__getattribute__(k)
-    #     except AttributeError:
-    #         return self[k]
+    def __getattr__(self, k):
+        if k in self.columns:
+            return self[k]
+        else:
+            return self.__getattribute__(k)
 
     def __len__(self):
         return len(self.index)
@@ -253,7 +250,6 @@ class MappedTable:
         return MappedTable(values=values, index=self.index, columns=columns, axis=1)
 
     def to_list(self):
-        # return [MappedSequence(row, self.columns, name=name) for name, *row in zip(self.index, *self.values)]
         return list(self.row_values)
 
     def to_dict(self):
@@ -284,6 +280,10 @@ class MappedTable:
 
     def isnone(self):
         new_values = [value.isnone() for value in self.row_values]
+        return MappedTable(values=new_values, index=self.index, columns=self.columns, axis=0)
+
+    def dropnone(self):
+        new_values = [value for value in self.row_values if not any(value.isnone())]
         return MappedTable(values=new_values, index=self.index, columns=self.columns, axis=0)
 
     def fillnone(self, value):

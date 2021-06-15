@@ -212,6 +212,7 @@ class MappedSequence(Sequence):
         return self._values
 
     def __hash__(self):
+        """Hashed value correspond"""
         return hash(self._values)
 
     @memoize
@@ -249,10 +250,21 @@ class MappedSequence(Sequence):
         return OrderedDict(self.items())
 
     @memoize
-    def unique(self):
+    def unique(self) -> tuple:
+        """Retrieve unique set of values in the mapped_sequence"""
         return tuple(set(self._values))
 
     def reindex(self, index):
+        """Reindex
+
+        Parameters
+        ----------
+        index
+
+        Returns
+        -------
+
+        """
         if self._scalar:
             return MappedSequence(
                 values=tuple(self.get(value, None) for value in index),

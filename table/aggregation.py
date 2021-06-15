@@ -12,10 +12,6 @@ def _aggregate(agg_func: Callable, x: Union[MappedSequence, Any]):
     else:
         return x
 
-mean_aggregate = partial(_aggregate, mean)
 
-# def mean_aggregate(x: Union[MappedSequence, Any]):
-#     if len(x) > 1:
-#         return mean(x)
-#     else:
-#         return x
+mean_aggregate = partial(_aggregate, mean)
+std_aggregate = partial(_aggregate, stdev)
